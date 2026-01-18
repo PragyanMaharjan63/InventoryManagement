@@ -1,45 +1,50 @@
 import supabase from "../lib/supabase.js";
-import { userModel } from "../models/userModel.js";
+import userModel from "../models/userModel.js";
 
-export const loginSupabase = async (req, res) => {
+export const syncUserToMongo = async (req, res) => {
   try {
     const { access_token } = req.body;
+
     if (!access_token) {
       return res.status(400).json({ error: "No token provided" });
     }
+
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser(access_token);
+
     if (error || !user) {
-      console.error("Supabase auth Error:", error);
       return res.status(401).json({ error: "Invalid token" });
     }
-    console.log("User authenticated:", user.email);
-    const result = await userModel.updateOne(
+
+    const mongoUser = await userModel.findOneAndUpdate(
       { supabaseId: user.id },
       {
-        $set: {
-          supabaseId: user.id,
-          email: user.email,
-          name: user.user_metadata?.full_name || user.user_metadata?.name,
-          avatar: user.user_metadata?.avatar_url,
-          lastLogin: new Date(),
-        },
+        supabaseId: user.id,
+        email: user.email,
+        name: user.user_metadata?.full_name || user.user_metadata?.name,
+        avatar: user.user_metadata?.avatar_url,
+        authProvider: user.app_metadata?.provider || "email",
+        emailVerified: user.email_confirmed_at ? true : false,
+        lastLogin: new Date(),
       },
-      { upsert: true },
+      {
+        new: true,
+        upsert: true,
+      },
     );
-    console.log("MongoDB update result:", result);
+
     res.json({
       success: true,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.user_metadata?.full_name,
+        id: mongoUser.supabaseId,
+        email: mongoUser.email,
+        name: mongoUser.name,
       },
     });
   } catch (err) {
-    console.error("Error in supabaseAuth", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error:", err);
+    res.status(500).json({ error: "Server error" });
   }
 };
