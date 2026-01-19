@@ -1,36 +1,18 @@
-import { useForm, type SubmitHandler } from "react-hook-form";
-
-type Inputs = {
-  example: string;
-  exampleRequired: string;
-};
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import Form from "@/components/ui/form";
 
 export default function Login() {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<Inputs>();
-  const onSubmit: SubmitHandler<Inputs> = (data) => console.log(data);
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <div>
-        <div>
-          <p>LOG IN</p>
-          <p>Welcome Back</p>
-          <p>Please login to continue</p>
-        </div>
-        <div>
-          <Input {...register("example")} />
-
-          <Input {...register("exampleRequired", { required: true })} />
-          {errors.exampleRequired && <span>This field is required</span>}
-
-          <Button type="submit">Submit</Button>
-        </div>
+    <div className="grid relative md:grid-cols-2 place-items-center h-screen bg-[url('/loginDeco.png')] bg-cover">
+      <div className="">
+        <Form />
       </div>
-    </form>
+      <div className="hidden lg:block">
+        <img
+          src="/logo.png"
+          alt="logo"
+          className="absolute w-80 lg:w-auto right-[2vw] lg:right-[6vw] top-[40vh]"
+        />
+      </div>
+    </div>
   );
 }
