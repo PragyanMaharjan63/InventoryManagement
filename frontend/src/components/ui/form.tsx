@@ -1,5 +1,7 @@
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { Eye, EyeClosed } from "lucide-react";
+import { createClient, type Session } from "@supabase/supabase-js";
+import axios from "axios";
 type Inputs = {
   example: string;
   exampleRequired: string;
@@ -7,16 +9,77 @@ type Inputs = {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "./separator";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
+);
 
 export default function Form() {
   const [showpw, setShowpw] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<Inputs>();
   const onSubmit: SubmitHandler<Inputs> = (data) => console.log(data);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session?.access_token) {
+        sendUserTOBackend(data.session.access_token);
+      }
+    });
+    const {
+      data: { subascription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.access_token) {
+        sendUserTOBackend(session.access_token);
+      }
+    });
+    return () => subascription.unsubscribe();
+  }, []);
+
+  const sendUserTOBackend = async (access_token: string) => {
+    try {
+      const response = await axios.post("http://localhost:3000/...", {
+        body: JSON.stringify({ access_token }),
+      });
+      if (response.ok) {
+        console.log("user synced to db");
+      } else {
+        console.log("mongodb sync failed!!!!!!!!");
+      }
+    } catch (err) {
+      console.log("backend req failed");
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setAuthError(null);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      setAuthError(error.message || "An error occured during login");
+      setLoading(false);
+    }
+  };
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
